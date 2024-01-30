@@ -58,10 +58,16 @@ function findContext(context: CompletionContext): {type: string, node?: SyntaxNo
 export type LiquidCompletionConfig = {
   /// Adds additional completions when completing a Liquid tag.
   tags?: readonly Completion[],
+
+  /// Subset of Liquid tags supported by completion.
+  allowedTags?: readonly string[],
+
   /// Add additional filter completions.
   filters?: readonly Completion[],
+
   /// Add variable completions.
-  variables?: readonly Completion[],
+  variables?: (context: CompletionContext) => readonly Completion[]
+
   /// Provides completions for properties completed under the given
   /// path. For example, when completing `user.address.`, `path` will
   /// be `["user", "address"]`.
@@ -97,8 +103,13 @@ function resolveProperties(state: EditorState, node: SyntaxNode, context: Comple
 export function liquidCompletionSource(config: LiquidCompletionConfig = {}) {
   let filters = config.filters ? config.filters.concat(Filters) : Filters
   let tags = config.tags ? config.tags.concat(Tags) : Tags
-  let exprs = config.variables ? config.variables.concat(Expressions) : Expressions
-  let {properties} = config
+
+  if (config.allowedTags) {
+    tags = tags.filter(tag => config.allowedTags.includes(tag.label))
+  }
+
+  let exprs = Expressions
+  let {variables, properties} = config
   return (context: CompletionContext): CompletionResult | null => {
     let cx = findContext(context)
     if (!cx) return null
@@ -106,7 +117,7 @@ export function liquidCompletionSource(config: LiquidCompletionConfig = {}) {
     let options
     if (cx.type == "filter") options = filters
     else if (cx.type == "tag") options = tags
-    else if (cx.type == "expression") options = exprs
+    else if (cx.type == "expression") options = variables ? variables(context).concat(exprs) : exprs
     else /* property */ options = resolveProperties(context.state, cx.target!, context, properties)
     return options.length ? {options, from, validFor: /^[\w\u00c0-\uffff]*$/} : null
   }
