@@ -59,8 +59,11 @@ export type LiquidCompletionConfig = {
   /// Adds additional completions when completing a Liquid tag.
   tags?: readonly Completion[],
 
-  /// Subset of Liquid tags supported by completion.
+  /// Subset of Liquid tags offered by completion.
   allowedTags?: readonly string[],
+
+  // Subset of Liquid expressions offered by completion.
+  allowedExpressions?: readonly string[],
 
   /// Add additional filter completions.
   filters?: readonly Completion[],
@@ -103,12 +106,16 @@ function resolveProperties(state: EditorState, node: SyntaxNode, context: Comple
 export function liquidCompletionSource(config: LiquidCompletionConfig = {}) {
   let filters = config.filters ? config.filters.concat(Filters) : Filters
   let tags = config.tags ? config.tags.concat(Tags) : Tags
+  let exprs = Expressions
 
   if (config.allowedTags) {
     tags = tags.filter(tag => config.allowedTags.includes(tag.label))
   }
 
-  let exprs = Expressions
+  if (config.allowedExpressions) {
+    exprs = exprs.filter(expr => config.allowedExpressions.includes(expr.label))
+  }
+
   let {variables, properties} = config
   return (context: CompletionContext): CompletionResult | null => {
     let cx = findContext(context)
